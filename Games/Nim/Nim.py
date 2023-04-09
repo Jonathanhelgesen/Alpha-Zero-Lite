@@ -2,6 +2,11 @@ import sys
 sys.path.append("..")
 from Game import Game
 
+
+def get_next_state(state, move, player=1):
+	return state - move
+
+
 class Nim(Game):
 	"""Simple implementation of the game Nim"""
 
@@ -24,7 +29,7 @@ class Nim(Game):
 		return 0 < move <= self.K
 		
 
-	def make_move(self, k):
+	def execute_move(self, k, player):
 		player = self.starting_player if self.turn % 2 == 0 else -self.starting_player
 
 		if self.is_move_valid(k):
@@ -38,9 +43,20 @@ class Nim(Game):
 		return status
 	
 
+	def check_move(self, state, move):
+		stones_left = state - move
+		if stones_left <= 0:
+			return -1
+		
+	
+
 	def get_state(self):
 		return self.stones_left, self.K
 	
 
 	def get_valid_moves(self):
 		return range(self.K + 1)
+	
+
+	def get_move_count(self):
+		return self.K

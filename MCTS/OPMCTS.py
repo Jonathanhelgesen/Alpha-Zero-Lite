@@ -4,8 +4,9 @@ from Node import Node
 
 class MCTS:
     
-    def __init__(self, params):
+    def __init__(self, params, ANET):
         self.params = params
+        self.ANET = ANET
 
     def select_action(self, node, starting_player, is_random=False):
         self.update(node, self.params['num_simulations'], starting_player)  # Update the tree using mcts

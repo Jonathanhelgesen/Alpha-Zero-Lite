@@ -1,83 +1,57 @@
-import numpy as np
-import math
+import random
 
 class Node:
+
+    def __init__(self, state, parent=None):
+        self.parent = parent
+        self.state = state
+        self.children = []
+        self.wins = 0
+        self.visits = 0
+
+    def get_children(self):
+        children = []
+        for state in self.state.generate_child_states():
+            child = Node(state, parent=self)
+            children.append(child)
+        return children
+
+    def get_random_child(self):
+        if self.children:
+            return random.choice(self.children)
+        else:
+            return random.choice(self.get_children())
+        
+    def get_random_or_terminal_child(self):
+        if not self.children:
+            self.children = self.get_children()
+        if self.state.turn < 2*self.state.size - 1:
+            return random.choice(self.children)
+        for child in self.children:
+            if child.state.get_winner() == -child.state.current_player:
+                return child
+        return random.choice(self.children)
+
+    def expand(self):
+        if not self.children:
+            self.children = self.get_children()
+            
+    def get_distribution(self):
+        if not self.children:
+            raise Exception('Node has no children')
+
+        distribution = {}
+        visits_sum = sum(child.visits for child in self.children)
+        print(visits_sum)
+        for child in self.children:
+            #distribution[child.state.move] = child.visits / visits_sum
+            distribution[child.state.move] = (child.visits, child.wins, visits_sum)
+        return distribution
     
-	def __init__(self, game, params, state, action_taken=None, parent=None):
-		self.game = game
-		self.params = params
-		self.state = state
-		self.action_taken = action_taken
-		self.parent = parent
-		
-		self.children = []
-		self.expandable_moves = game.get_valid_moves(state)
-		self.value_sum = 0
-		self.visit_sum = 0
-
-
-	def is_fully_expanded(self):
-		return np.sum(self.expandable_moves) == 0 and len(self.children) > 0
-	
-
-	def select(self):
-		best_child = None
-		best_ucb = -np.inf
-
-		for child in self.children:
-			ucb = self.get_ucb(child)
-			if ucb > best_ucb:
-				best_child = child
-				best_ucb = ucb
-
-		return best_child
-	
-
-	def get_ucb(self, child):
-		q_value = 1 - (child.value_sum / child.visit_count + 1) / 2
-		return q_value + self.args['C'] * math.sqrt(math.log(self.visit_count) / child.visit_count)
-
-
-	def expand(self):
-		action = np.random.choice(np.where(self.expandable_moves == 1)[0])
-		self.expandable_moves[action] = 0
-
-		child_state = self.state.copy()
-		child_state = self.game.get_next_state(child_state, action, 1) # Må implementeres
-		child_state = self.game.change_perspective(child_state, player=-1)
-		# Må disse deklareres?
-
-		child = Node(self.game, self.params, child_state, self, action)
-		self.childrend.append(child)
-		return child
-	
-
-	def simulate(self):
-		value, is_terminal = self.game.get_value_andterminated(self.state, self.action_taken)
-		value = self.game.get_opponent_value(value)
-
-		if is_terminal:
-			return value
-		
-		rollout_state = self.state.copy()
-		rollout_player = 1
-		while True:
-			valid_moves = self.game.get_valid_moves(rollout_state)
-			action = np.random.choice(np.where(valid_moves == 1)[0])
-			rollout_state = self.game.get_next_state(rollout_state,action, rollout_player)
-			value, is_terminal = self.game.get_value_and_terminated(rollout_state, action)
-			if is_terminal:
-				if rollout_player == 1:
-					value = self.game.get_opponent_value(value)
-				return value
-		
-			rollout_player = self.game.get_opponent(rollout_player)
-
-
-	def backpropagate(self, value):
-		self.value_sum += value
-		self.visit_count += 1
-		
-		value = self.game.get_opponent_value(value)
-		if self.parent is not None:
-			self.parent.backpropagate(value)
+    def get_list_distribution(self):
+        dist = [[0 for i in range(self.state.size)] for j in range(self.state.size)]
+        visits_sum = sum(child.visits for child in self.children)
+        for child in self.children:
+            move = child.state.move
+            dist[move[0]][move[1]] = child.visits / visits_sum
+        return dist

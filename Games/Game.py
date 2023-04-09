@@ -25,10 +25,25 @@ class Game(ABC):
 
 
 	@abstractmethod
-	def get_game_status(state, player):
+	def get_game_status(self, player):
 		pass
 
 
 	def get_opponent(player):
 		"""1 represents current player, -1 is the opponent"""
 		return -player
+	
+
+	@abstractmethod
+	def undo_move(self, move):
+		pass
+
+
+	@abstractmethod
+	def check_status(self, move):
+		pass
+
+
+	@abstractmethod
+	def get_move_count(self):
+		pass
