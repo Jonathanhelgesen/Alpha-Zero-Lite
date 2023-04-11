@@ -6,13 +6,9 @@ import random
 
 class HexState():
 
-	def __init__(self, board, player, move=None, turn=0, size=None): #fjernet move, kan legges til
-		if size is not None:
-			self.size = size
-			self.board = [[0]*size]*size
-		else:
-			self.size = len(board)
-			self.board = board
+	def __init__(self, board, player, move=None, turn=0): #fjernet move, kan legges til
+		self.size = len(board)
+		self.board = board
 		self.current_player = player
 		self.turn = turn
 		self.move = copy.copy(move)
@@ -26,6 +22,10 @@ class HexState():
 				if element == 0:
 					return False
 		return True
+	
+	@staticmethod
+	def get_empty_board(size):
+		return [[0 for x in range(size)] for y in range(size)]
 
 
 	def get_valid_moves(self):
@@ -42,7 +42,7 @@ class HexState():
 		r = move[0]
 		c = move[1]
 		if self.board[r][c] != 0:
-			raise Exception('ILLEGAL MOVE!')
+			raise Exception(f'ILLEGAL MOVE: {move}')
 		self.board[r][c] = self.next_player()
 
 	
@@ -57,11 +57,19 @@ class HexState():
 		child_states = []
 		valid_moves = self.get_valid_moves()
 		for move in valid_moves:
-			board_copy = copy.deepcopy(self.board)
-			child_state = HexState(board_copy, self.next_player(), move=move, turn=self.turn+1)
-			child_state.execute_move(move)
+			#board_copy = copy.deepcopy(self.board)
+			#child_state = HexState(board_copy, self.next_player(), move=move, turn=self.turn+1)
+			#child_state.execute_move(move)
+			child_state = self.get_child_state(move)
 			child_states.append(child_state)
 		return child_states
+	
+
+	def get_child_state(self, action):
+		board_copy = copy.deepcopy(self.board)
+		child_state = HexState(board_copy, self.next_player(), move=action, turn=self.turn+1)
+		child_state.execute_move(action)
+		return child_state
 	
 
 	def get_flat_state(self):
@@ -70,6 +78,11 @@ class HexState():
 		flat_board = sum(self.board, [])
 		flat_state.extend(flat_board)
 		return flat_state
+	
+	def flat_index_to_move(self, index):
+		row = index // self.size
+		column = index % self.size
+		return [row, column]
 		
 
 	def get_winner(self):

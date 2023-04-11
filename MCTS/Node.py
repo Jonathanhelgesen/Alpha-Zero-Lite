@@ -22,6 +22,10 @@ class Node:
         else:
             return random.choice(self.get_children())
         
+    def get_child_node(self, action):
+        child_state = self.state.get_child_state(action)
+        return Node(child_state, parent=self)
+        
     def get_random_or_terminal_child(self):
         if not self.children:
             self.children = self.get_children()

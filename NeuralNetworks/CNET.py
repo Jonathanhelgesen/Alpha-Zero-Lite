@@ -3,7 +3,7 @@ from keras.layers import Dense, Flatten
 from keras.optimizers import Adam
 import numpy as np
 
-class ANET:
+class CNET:
     
 	def __init__(self, board_size, neuron_counts, activation_func, loss_func):
 		self.model = Sequential()
@@ -14,7 +14,7 @@ class ANET:
 		for count in neuron_counts:
 			self.model.add(Dense(count, activation=activation_func))
 
-		self.model.add(Dense(board_size**2, activation='softmax'))
+		self.model.add(Dense(1, activation='sigmoid'))
 
 		optimizer = Adam(learning_rate=0.0001) # Var 0.0001
 		self.model.compile(optimizer=optimizer, loss=loss_func, metrics=['accuracy'])
@@ -34,7 +34,6 @@ class ANET:
 
 	def one_hot_tuple_list(self, lst):
 		new_lst = []
-		lst = lst[0]
 		for i in range(len(lst)):
 			row = []
 			for j in range(len(lst[0])):
@@ -46,22 +45,20 @@ class ANET:
 					row.append([0, 1])
 			new_lst.append(row)
 		return new_lst
-	
-	def process_target(self, target):
-		new_list = [item[0] for item in target]
-		return new_list
 
 
 	def fit(self, x, y, epochs=10, batch_size=1):
-		x_processed = np.array(self.one_hot_tuple_list(x))
-		y_processed = np.array(self.process_target(y))
-		print(f'x train: {x_processed}')
-		print(f'y train: {y_processed}')
+		x_processed = np.array(self.one_hot_tuple(x))
+		y_processed = np.array(y)
 		self.model.fit(x_processed, y_processed, epochs, batch_size)
 
 	def predict(self, x):
 		x_processed = np.array(self.one_hot_tuple(x))
 		return self.model.predict(x_processed, verbose=0)
+	
 
-	def save(self, name):
-		self.model.save(name)
+
+if __name__ == '__main__':
+	layers = [128, 128, 128]
+	anet = CNET(5, layers, 'softmax', 'adam', 'categorical_crossentropy')
+	anet.fit()
