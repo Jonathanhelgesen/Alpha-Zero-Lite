@@ -1,4 +1,6 @@
 import random
+import copy
+from Games.Hex.HexState import HexState
 
 class Node:
 
@@ -53,9 +55,36 @@ class Node:
         return distribution
     
     def get_list_distribution(self):
+        #next_move_wins, dist = self.check_next_move_win()
+        #if next_move_wins:
+            #return dist
         dist = [[0 for i in range(self.state.size)] for j in range(self.state.size)]
         visits_sum = sum(child.visits for child in self.children)
         for child in self.children:
             move = child.state.move
             dist[move[0]][move[1]] = child.visits / visits_sum
         return dist
+    
+    def check_next_move_win(self):
+        next_move_wins = False
+        valid_moves = self.state.get_valid_moves()
+        dist = [[0 for i in range(self.state.size)] for j in range(self.state.size)]
+        for move in valid_moves:
+            child_state = self.state.get_child_state(move)
+            if child_state.get_winner() == self.state.current_player:
+                next_move_wins = True
+                dist[move[0]][move[1]] = 0.9
+            else:
+                dist[move[0]][move[1]] = 0.01
+        return next_move_wins, dist
+    
+
+    def check_next_move_win2(self):
+        next_move_wins = False
+        valid_moves = self.state.get_valid_moves()
+        dist = [[0 for i in range(self.state.size)] for j in range(self.state.size)]
+        for move in valid_moves:
+            child_state = self.state.get_child_state(move)
+            flat_move_index = move[0]*self.state.size + move[1]
+        return next_move_wins, dist
+            

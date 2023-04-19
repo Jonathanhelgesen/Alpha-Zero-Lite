@@ -1,15 +1,18 @@
 import math
 import random
+import time
 #from Node import Node
 
 class OPMCTS:
     
-    def __init__(self, params, actor):
+    def __init__(self, params, actor, time_limit=10):
         self.params = params
         self.actor = actor
+        self.time_limit = time_limit
 
     def select_action(self, node, starting_player, is_random=False):
-        self.update(node, self.params['num_simulations'], starting_player)  # Update the tree using mcts
+        # Generate tree
+        self.update(node, self.params['num_simulations'], starting_player)
 
         if is_random:
             return random.choice(node.children)
@@ -21,7 +24,7 @@ class OPMCTS:
         lowest_qsa = float('inf')
 
         for child in node.children:
-            qsa = float(child.wins)/float(child.visits)  # Calculate Q(s,a)
+            qsa = float(child.wins)/float(child.visits + 1)  # Calculate Q(s,a)
 
             if starting_player == current_player:
                 if qsa > highest_qsa:
@@ -34,13 +37,19 @@ class OPMCTS:
         return action_node
 
     def update(self, node, num_simulations, current_player):
-        for _ in range(num_simulations):
+        start_time = time.time()
+        for i in range(num_simulations):
             best_node = self.tree_search(node, current_player)
             best_node.expand()
             if len(best_node.get_children()) > 0:  # Choose a random child if just expanded
                 best_node = random.choice(best_node.children)
             winner = self.evaluate(best_node)
             self.backpropagate(best_node, winner, current_player)
+            
+            if time.time() - start_time > self.time_limit:
+                break
+        print(f'Rollouts completed: {i}')
+
 
     def tree_policy_value(self, parent, child, is_opponent):
         q_value = child.wins / (child.visits + 1)

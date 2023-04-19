@@ -13,6 +13,9 @@ class HexState():
 		self.turn = turn
 		self.move = copy.copy(move)
 
+	def get_board(self):
+		return copy.deepcopy(self.board)
+
 	def check_full_board(self):
 		"""
     	Checks if a 2D list is filled with no 0s and that the number of 1s and -1s are equal.
@@ -86,6 +89,53 @@ class HexState():
 		
 
 	def get_winner(self):
+		matrix = copy.deepcopy(self.board)
+		queue = deque()
+		visited = set()
+		# Check if there is a path from right to left
+		for r in range(self.size):
+			if matrix[r][0] == 1:
+				queue.append((r,0))
+				visited.add((r,0))
+		while queue:
+			r, c = queue.popleft()
+			if c == len(matrix) - 1:
+				return 1
+			for x, y in ((r-1,c), (r,c-1), (r+1,c), (r,c+1), (r-1,c+1), (r+1,c-1)):
+				if 0 <= x < len(matrix) and 0 <= y < len(matrix[0]) and matrix[x][y] == 1 and (x,y) not in visited:
+					queue.append((x,y))
+					visited.add((x,y))
+		# Check if there is a path from top to bottom
+		for c in range(self.size):
+			if matrix[0][c] == 2:
+				queue.append((0,c))
+				visited.add((0,c))
+		while queue:
+			r, c = queue.popleft()
+			if r == len(matrix) - 1:
+				return 2
+			for x, y in ((r-1,c), (r,c-1), (r+1,c), (r,c+1), (r-1,c+1), (r+1,c-1)):
+				if 0 <= x < len(matrix) and 0 <= y < len(matrix[0]) and matrix[x][y] == 2 and (x,y) not in visited:
+					queue.append((x,y))
+					visited.add((x,y))
+		# Return 0 if no winner yet
+		return 0
+
+
+if __name__ == "__main__":
+	board = [[0, 0, 0, 0, 2],
+		 [2, 2, 2, 2, 2],
+		 [1, 1, 1, 2, 1],
+		 [0, 0, 0, 2, 0],
+		 [0, 0, 0, 2, 0]]
+         
+	state = HexState(board, 1, turn=14)
+	print(state.get_winner())
+
+
+# Gamle get_winner:
+	"""
+		def get_winner(self):
 		if self.turn < 2 * self.size - 1:
 			return 0
 		matrix = copy.deepcopy(self.board)
@@ -121,15 +171,4 @@ class HexState():
 						queue.append((x,y))
 						visited.add((x,y))
 		# Return 0 if no winner yet
-		return 0
-
-
-if __name__ == "__main__":
-	board = [[0, 0, 0, 0, 2],
-		 [2, 2, 2, 2, 2],
-		 [1, 1, 1, 2, 1],
-		 [0, 0, 0, 2, 0],
-		 [0, 0, 0, 2, 0]]
-         
-	state = HexState(board, 1, turn=14)
-	print(state.get_winner())
+		return 0"""

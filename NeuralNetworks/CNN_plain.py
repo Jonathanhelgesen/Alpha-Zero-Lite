@@ -9,13 +9,12 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-class CNN:
+class CNN_plain:
     
 
-	def __init__(self, model=None):
+	def __init__(self, model=None, name='Margot'):
 		self.model = model
-		if model is not None:
-			self.convert_to_tflite()
+		self.name = name
 
 
 	def make_model(self, board_size, layers, activation_func, loss_func):
@@ -46,7 +45,6 @@ class CNN:
 		# compile the model
 		optimizer = keras.optimizers.Adam(learning_rate=0.001) # Should be added to params
 		self.model.compile(optimizer=optimizer, loss=loss_func, metrics=['accuracy'])
-		self.convert_to_tflite()
 
 
 	def get_board_and_pid(self, board, player):
@@ -108,15 +106,13 @@ class CNN:
 		x = self.get_training_data(x)
 		x = self.list_to_numpy(x)
 		self.model.fit(x, np.array(y), epochs, batch_size)
-		self.convert_to_tflite()
 
 
 	def predict(self, board, player):
 		x_board, x_pid = self.get_board_and_pid(board, player)
-		return self.predict_with_tflite(x_board, x_pid)
-		result = self.model.predict([x_board, x_pid])
-		return result
-		x_board, x_pid = self.one_hot_state(board, player)
+		#return self.predict_with_tflite(x_board, x_pid)
+		result = self.model([x_board, x_pid])
+		return result.numpy()
 
 
 	def test(self, x, y, epochs=10, batch_size=1):
@@ -130,38 +126,3 @@ class CNN:
 
 	def save(self, name):
 		self.model.save(name)
-	
-
-	def convert_to_tflite(self):
-    	# Convert the Keras model to a TensorFlow Lite model
-		converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
-		tflite_model = converter.convert()
-
-    	# Save the TensorFlow Lite model to a file
-		path = os.path.join(dirname, 'current_ANET.tflite')
-		with open(path, 'wb') as f:
-			f.write(tflite_model)
-
-
-	def predict_with_tflite(self, board, pid):
-		#print(f'Board is looking like this: {board}')
-		x_processed = [board, pid]
-
-		#print(f'x_processed type: {x_processed.dtype}')
-		# Load the TensorFlow Lite model
-		path = os.path.join(dirname, 'current_ANET.tflite')
-		interpreter = tf.lite.Interpreter(model_path=path)
-		interpreter.allocate_tensors()
-
-		# Get input and output tensors
-		input_details = interpreter.get_input_details()
-		output_details = interpreter.get_output_details()
-
-		# Make a prediction
-		#interpreter.set_tensor(input_details[0]['index'], x_processed)
-		interpreter.set_tensor(input_details[0]['index'], x_processed[0])
-		interpreter.set_tensor(input_details[1]['index'], x_processed[1])
-		interpreter.invoke()
-		output_data = interpreter.get_tensor(output_details[0]['index'])
-
-		return output_data

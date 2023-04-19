@@ -1,5 +1,5 @@
 import keras
-from keras.layers import Input, Conv2D, Flatten, Dense, concatenate, BatchNormalization, MaxPooling2D
+from keras.layers import Input, Conv2D, Flatten, Dense, concatenate
 from keras.models import Model
 import tensorflow as tf
 import tensorflow_model_optimization as tfmot
@@ -9,28 +9,22 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-class CNN:
+class CNN3:
     
 
 	def __init__(self, model=None):
 		self.model = model
-		if model is not None:
-			self.convert_to_tflite()
 
 
 	def make_model(self, board_size, layers, activation_func, loss_func):
 
-		board_shape = (board_size, board_size, 3)
+		board_shape = (board_size, board_size, 23)
 		input_board = Input(shape=board_shape, name='input_board')
 		input_player = Input(shape=(2,), name='input_player')
 
 		# Make convlutional layers
 		conv1 = Conv2D(filters=128, kernel_size=3, activation='relu', padding='same')(input_board)
-		#conv1 = BatchNormalization()(conv1)
-		#conv1 = MaxPooling2D(pool_size=(2, 2))(conv1)
-		conv2 = Conv2D(filters=64, kernel_size=3, activation='relu', padding='same')(conv1)
-		#conv2 = BatchNormalization()(conv2)
-		#conv2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+		conv2 = Conv2D(filters=128, kernel_size=3, activation='relu', padding='same')(conv1)
 		flatten = Flatten()(conv2)
 		concat = concatenate([flatten, input_player])
 
@@ -80,6 +74,83 @@ class CNN:
 			encoded_board.append(encoded_row)
 
 		return encoded_board, encoded_player
+	
+
+	def create_feature_vector(self, board, player_id):
+		pid = [1, 0] if player_id == 1 else [0, 1]
+		n = len(board)
+		feature_vector = [[[0 for _ in range(23)] for _ in range(n)] for _ in range(n)]
+    
+		for r in range(n):
+			for c in range(n):
+				if board[r][c] == 0:
+					feature_vector[r][c][0] = 1
+				elif board[r][c] == 1:
+					feature_vector[r][c][1] = 1
+				elif board[r][c] == 2:
+					feature_vector[r][c][2] = 1
+                
+				# Top neighbor
+				if r > 0:
+					if board[r-1][c] == 0:
+						feature_vector[r][c][3] = 1
+					elif board[r-1][c] == 1:
+						feature_vector[r][c][4] = 1
+					elif board[r-1][c] == 2:
+						feature_vector[r][c][5] = 1
+
+				# Top right neighbor
+				if r > 0 and c < n-1:
+					if board[r-1][c+1] == 0:
+						feature_vector[r][c][6] = 1
+					elif board[r-1][c+1] == 1:
+						feature_vector[r][c][7] = 1
+					if board[r-1][c+1] == 2:
+						feature_vector[r][c][8] = 1
+
+				# Right neighbor
+				if c < n-1:
+					if board[r][c+1] == 0:
+						feature_vector[r][c][9] = 1
+					elif board[r][c+1] == 1:
+						feature_vector[r][c][10] = 1
+					elif board[r][c+1] == 2:
+						feature_vector[r][c][11] = 1
+
+				# Bottom neighbor
+				if r < n-1:
+					if board[r+1][c] == 0:
+						feature_vector[r][c][12] = 1
+					elif board[r+1][c] == 1:
+						feature_vector[r][c][13] = 1
+					elif board[r+1][c] == 2:
+						feature_vector[r][c][14] = 1
+
+				# Bottom left neighbor
+				if r < n-1 and c > 0:
+					if board[r+1][c-1] == 0:
+						feature_vector[r][c][15] = 1
+					elif board[r+1][c-1] == 1:
+						feature_vector[r][c][16] = 1
+					elif board[r+1][c-1] == 2:
+						feature_vector[r][c][17] = 1
+
+				# Left neighbor
+				if c > 0:
+					if board[r][c-1] == 0:
+						feature_vector[r][c][18] = 1
+					elif board[r][c-1] == 1:
+						feature_vector[r][c][19] = 1
+					elif board[r][c-1] == 2:
+						feature_vector[r][c][20] = 1
+
+				# Encode if cell is a goal cell
+				if r == 0 or r == n-1:
+					feature_vector[r][c][21] = 1
+				if c == 0 or c == n-1:
+					feature_vector[r][c][22] = 1
+    
+		return feature_vector, pid
 
 
 
@@ -92,7 +163,7 @@ class CNN:
 		data = data
 		training_data = []
 		for d in data:
-			board, pid = self.one_hot_state(d[0], d[1])
+			board, pid = self.create_feature_vector(d[0], d[1])
 			training_data.append([board, pid])
 		return training_data
 	
@@ -112,20 +183,10 @@ class CNN:
 
 
 	def predict(self, board, player):
-		x_board, x_pid = self.get_board_and_pid(board, player)
+		x_board, x_pid = self.create_feature_vector(board, player)
 		return self.predict_with_tflite(x_board, x_pid)
-		result = self.model.predict([x_board, x_pid])
-		return result
+		return self.model([x_board, x_pid])[0]
 		x_board, x_pid = self.one_hot_state(board, player)
-
-
-	def test(self, x, y, epochs=10, batch_size=1):
-		#x_boards, x_pids = self.get_training_data(x)
-		x = self.get_training_data(x)
-		x = self.list_to_numpy(x)
-		loss, accuracy = self.model.evaluate(x, np.array(y), epochs, batch_size)
-		print('Test loss:', loss)
-		print('Test accuracy:', accuracy)
 	
 
 	def save(self, name):
@@ -145,7 +206,7 @@ class CNN:
 
 	def predict_with_tflite(self, board, pid):
 		#print(f'Board is looking like this: {board}')
-		x_processed = [board, pid]
+		x_processed = [np.array([board]).astype(np.float32), np.array([pid]).astype(np.float32)]
 
 		#print(f'x_processed type: {x_processed.dtype}')
 		# Load the TensorFlow Lite model

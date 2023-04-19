@@ -18,7 +18,7 @@ def add_nodes(G, matrix):
 			color = 'gray'
 			if matrix[r][c] == 1:
 				color = 'red'
-			elif matrix[r][c] == -1:
+			elif matrix[r][c] == 2:
 				color = 'blue'
 			G.add_node(f'{r}_{c}', color=color)
 

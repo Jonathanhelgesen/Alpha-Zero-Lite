@@ -1,7 +1,5 @@
 from NeuralNetworks.ANET import ANET
 from NeuralNetworks.CNN import CNN
-from NeuralNetworks.CNN_plain import CNN_plain
-from NeuralNetworks.cnn_encoded import CNN_encoded
 from NeuralNetworks.RBUF import RBUF
 from NeuralNetworks.RBUF2 import RBUF2
 from MCTS.OPMCTS import OPMCTS
@@ -9,13 +7,13 @@ from MCTS.Node import Node
 from Games.Hex.HexState import HexState
 from RL.Actor import Actor
 import math
-import time
 import numpy as np
 from keras.models import load_model
-from Games.Hex.HexVisualizer import visualize
+import os
+dirname = os.path.dirname(__file__)
 
 
-class Simulator:
+class Generator:
 	"""Class that produces ANETs"""
     
 	def __init__(self):
@@ -23,31 +21,38 @@ class Simulator:
 		self.save_anet = True
 		self.cases_added = 0
 
+
+	def write_to_file(self, board, player, dist):
+		file_path = os.path.join(os.getcwd(), 'my_data4.txt')
+
+		# write the data to the text file
+		file = open(file_path, mode='a')
+		# write each case to the file
+		line = str(board) + '+' + str(player) + '+' + str(dist) + '\n'
+		file.write(line)
+
+		# close the file
+		file.close()
+
 	
-	def run(self, save_interval, num_anets, batch_size):
+	def run(self):
 		# Etter hvert game, add cases til RBUF og . Når antall cases added er større eller lik save interval, lagre modellen
 		# ANET default policy fit-es etter hvert game
 		layers = [64]
-		anet = CNN_plain()
+		anet = CNN()
 		anet.make_model(4, layers, 'relu', 'categorical_crossentropy')
 		#anet = load_model('anet_4')
 		actor = Actor(anet)
 
-		# Save initial ANET
-		actor.ANET.save(f'ann_4x4_0')
-
-		save_count = 0
-		finished = False
-
 		board = HexState.get_empty_board(4)
 
 		params = {
-			'num_simulations': 6400,
+			'num_simulations': 6401,
 			'C': 1.4,
-    		'epsilon': 0.3
+    		'epsilon': 1
 		}
                 
-		mcts = OPMCTS(params, actor, 5)
+		mcts = OPMCTS(params, actor, 10)
 		game_count = 0
 		starting_player = 1
 
@@ -87,25 +92,7 @@ class Simulator:
 				game_distributions.append(distribution)
 
 				#self.RBUF.add_case(state, distribution)
-				self.RBUF.add_case(node.parent.state.get_board(), node.parent.state.current_player, distribution)
-				self.cases_added += 1
-				#visualize(node.state.get_board(), 'visuals', f'{game_count}{turn}')
-
-			#print(f'Starting player: {starting_player}, Winning player: {node.state.get_winner()}')
-			#print(f'{node.state.get_board()[0]}\n{node.state.get_board()[1]}\n{node.state.get_board()[2]}')
+				self.write_to_file(node.parent.state.get_board(), node.parent.state.current_player, distribution)
+		
 			results.append(starting_player + node.state.get_winner())
 			print(results)
-			states, targets = self.RBUF.get_state_and_target_batch(batch_size)
-			#print(f'States: {states}')
-			#print(f'Targets: {targets}')
-			actor.ANET.fit(states, targets)
-
-			if (game_count) % save_interval == 0:
-				actor.ANET.save(f'4cnn_{save_count + 1}')
-				save_count += 1
-
-			if save_count == num_anets:
-				break
-
-
-		# TODO: Lagre ANETs for TOPP
