@@ -7,19 +7,21 @@ import math
 import numpy as np
 import os
 dirname = os.path.dirname(__file__)
+from params import params
 
 
 class CNN_plain:
     
 
-	def __init__(self, model=None, name='Margot'):
+	def __init__(self, model=None):
 		self.model = model
-		self.name = name
 
 
 	def make_model(self, board_size, layers, activation_func, loss_func):
 
+		board_size = params['board_size']
 		board_shape = (board_size, board_size, 3)
+
 		input_board = Input(shape=board_shape, name='input_board')
 		input_player = Input(shape=(2,), name='input_player')
 
@@ -35,16 +37,16 @@ class CNN_plain:
 
 		# Add dense layers
 		x = concat
+		layers = params['layers']
 		for i in layers:
-			x = Dense(i, activation=activation_func)(x)
+			x = Dense(i, activation=params['activation_func'])(x)
 
 		output = Dense(units=board_size**2, activation='softmax')(x)
 
 		self.model = Model(inputs=[input_board, input_player], outputs=output)
 
 		# compile the model
-		optimizer = keras.optimizers.Adam(learning_rate=0.001) # Should be added to params
-		self.model.compile(optimizer=optimizer, loss=loss_func, metrics=['accuracy'])
+		self.model.compile(optimizer=params['optimizer'], loss=params['loss_func'], metrics=['accuracy'])
 
 
 	def get_board_and_pid(self, board, player):

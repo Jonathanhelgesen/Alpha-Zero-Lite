@@ -1,106 +1,113 @@
 import math
 import random
 import time
+from params import params
 #from Node import Node
 
 class OPMCTS:
     
-    def __init__(self, params, actor, time_limit=10):
-        self.params = params
+    def __init__(self, actor, time_limit=10):
         self.actor = actor
-        self.time_limit = time_limit
+        self.time_limit = params['time_limit']
+
 
     def select_action(self, node, starting_player, is_random=False):
-        # Generate tree
-        self.update(node, self.params['num_simulations'], starting_player)
+        # Continue grow the given node
+        self.generate_tree(node, params['num_rollouts'], starting_player)
 
         if is_random:
             return random.choice(node.children)
 
         current_player = node.state.current_player
-        action_node = None
+        best_child = None
 
-        highest_qsa = -float('inf')
-        lowest_qsa = float('inf')
+		# Find node with best expected final result
+        highest_q = -float('inf')
+        lowest_q = float('inf')
 
         for child in node.children:
-            qsa = float(child.wins)/float(child.visits + 1)  # Calculate Q(s,a)
+            # Check ratio between visits and wins
+            q_value = child.wins/(child.visits + 1)  
 
+			# Best move depends on which player is moving
             if starting_player == current_player:
-                if qsa > highest_qsa:
-                    highest_qsa = qsa
-                    action_node = child
-            else:  # If the current player is the opposing player, the best score is the lowest Q(s,a)
-                if qsa < lowest_qsa:
-                    lowest_qsa = qsa
-                    action_node = child
-        return action_node
+                if q_value > highest_q:
+                    best_child = child
+                    highest_q = q_value
+            else: 
+                if q_value < lowest_q:
+                    best_child = child
+                    lowest_q = q_value
+                    
+        return best_child
 
-    def update(self, node, num_simulations, current_player):
+
+    def generate_tree(self, node, num_simulations, current_player):
         start_time = time.time()
         for i in range(num_simulations):
+            
+			# Find best child node using tree policy
             best_node = self.tree_search(node, current_player)
+            
+			# Generate child nodes
             best_node.expand()
-            if len(best_node.get_children()) > 0:  # Choose a random child if just expanded
+            
+			# If node isn't leaf node, get random child
+            if len(best_node.get_children()) > 0: 
                 best_node = random.choice(best_node.children)
+                
+			# Perform rollout
             winner = self.evaluate(best_node)
             self.backpropagate(best_node, winner, current_player)
             
-            if time.time() - start_time > self.time_limit:
+            if time.time() - start_time > params['time_limit']:
                 break
         print(f'Rollouts completed: {i}')
 
-
-    def tree_policy_value(self, parent, child, is_opponent):
-        q_value = child.wins / (child.visits + 1)
-        u_value = self.params['C'] * math.sqrt(math.log(parent.visits) / (child.visits + 1))
-
-        if is_opponent:
-            return q_value - u_value
-        return q_value + u_value
-
     def tree_search(self, node, current_player):
-        if not node.children:  # Breaks recursion and returns the best leaf node
+        if not node.children:  
+            # Leaf node, end search
             return node
 
         best_child = node
         highest_value = float('-inf')
         lowest_value = float('inf')
-        opposing_player = node.state.current_player != current_player
+        is_opponent = node.state.current_player != current_player
 
         for child in node.children:
-            value = self.tree_policy_value(node, child, opposing_player)  # Get value of node based on the tree policy
-
-            if opposing_player and value < lowest_value:
-                # The best value is the lowest value when the player is the opposing player
+            # Use tree policy to asses the value of the child
+            value = self.tree_policy_value(node, child, is_opponent)
+            if is_opponent and value < lowest_value:
+                # Minimize for opponent
                 best_child = child
                 lowest_value = value
 
-            elif (not opposing_player) and value > highest_value:
+            elif (not is_opponent) and value > highest_value:
+                # Maximize for current player
                 best_child = child
                 highest_value = value
-        return self.tree_search(best_child, current_player)  # Recursively search the tree until reaching best leaf node
+        
+		# Run until leaf node is reached
+        return self.tree_search(best_child, current_player)
+    
+
+    def tree_policy_value(self, parent, child, is_opponent):
+        q_value = child.wins / (child.visits + 1)
+        # Upper Confidence Bound for exploration bonus
+        u_value = math.sqrt(math.log(parent.visits) * params['C'] / (child.visits + 1))
+
+		#Min-max
+        if is_opponent:
+            return q_value - u_value
+        return q_value + u_value
+
 
     def evaluate(self, node):
         winner = node.state.get_winner()
         #random_simulation = random.random() < self.params['epsilon']
         while winner == 0:
-            #if random_simulation:
-                #node = node.get_random_child()
-            #else:
-                # This is not general for different games
-                #flat_state = node.state.get_flat_state()
-                #flat_board = flat_state[1:]
-                #predictions = self.ANET.predict(flat_state).tolist()[0]
-                #max_prob = 0
-                #max_prob_index = None
-                #for i in range(len(predictions)):
-                    #if predictions[i] > max_prob and flat_board[i] == 0:
-                        #max_prob = predictions[i]
-                        #max_prob_index = i
-                #action = self.actor.get_best_action(node.state)
-            action = self.actor.get_epsilon_greedy_action(node.state, self.params['epsilon'])
-                # New node based on ANET prediction
+            action = self.actor.get_epsilon_greedy_action(node.state, params['epsilon'])
+            # New node based on ANET/random prediction
             node = node.get_child_node(action)
                 
             winner = node.state.get_winner()

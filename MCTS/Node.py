@@ -16,13 +16,14 @@ class Node:
         for state in self.state.generate_child_states():
             child = Node(state, parent=self)
             children.append(child)
+        self.children = children
         return children
 
     def get_random_child(self):
-        if self.children:
-            return random.choice(self.children)
-        else:
+        if not self.children:
             return random.choice(self.get_children())
+        else:
+            return random.choice(self.children)
         
     def get_child_node(self, action):
         child_state = self.state.get_child_state(action)
